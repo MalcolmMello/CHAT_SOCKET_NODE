@@ -11,6 +11,40 @@ server.listen(4000);
 
 app.use(express.static(path.join(__dirname, 'public')));
 
+let connectedUsers = [];
+
 io.on('connection', (socket) => {
     console.log("Conexão detectada...");
+
+    socket.on('join-request', (username) => {
+        socket.username = username;
+        connectedUsers.push( username );
+        console.log( connectedUsers );
+
+        socket.emit('user-ok', connectedUsers);
+        
+        socket.broadcast.emit('list-update', {
+            joined: username,
+            list: connectedUsers
+        });
+
+        socket.on('disconnect', () => {
+            connectedUsers = connectedUsers.filter(user => user != socket.username);
+            console.log(connectedUsers)
+
+            socket.broadcast.emit('list-update', {
+                left: socket.username,
+                list: connectedUsers
+            });
+        });
+
+        socket.on('send-msg', (txt) => {
+            let object = {
+                username: socket.username,
+                message: txt
+            };
+
+            socket.broadcast.emit('show-msg', object);
+        });
+    });
 });
